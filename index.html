@@ -8,6 +8,10 @@
 *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system}
 body{background:#f7f7f7;padding:12px;max-width:800px;margin:0 auto;}
 
+.reset{
+    width:100%;margin-bottom:8px;padding:14px;background:#f55;font-size:17px;color:#fff;border:0;border-radius:10px;
+}
+
 .top-card{background:#fff;padding:16px;border-radius:12px;margin-bottom:8px;box-shadow:0 1px 6px #eee;}
 .sum-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;}
 .sum-text{font-size:18px;color:#444;}
@@ -53,13 +57,12 @@ body{background:#f7f7f7;padding:12px;max-width:800px;margin:0 auto;}
 .delAllBtn{
     background:#999;color:#fff;border:none;padding:3px 8px;border-radius:5px;font-size:12px;
 }
-
-.reset{
-    width:100%;margin-top:8px;padding:14px;background:#f55;font-size:17px;color:#fff;border:0;border-radius:10px;
-}
 </style>
 </head>
 <body>
+<!-- 一键清空置顶 -->
+<button class="reset" onclick="resetAll()">一键清空全部</button>
+
 <div class="top-card">
     <div class="sum-row">
         <div>
@@ -81,8 +84,6 @@ body{background:#f7f7f7;padding:12px;max-width:800px;margin:0 auto;}
 </div>
 
 <div class="goods-container" id="goodsWrap"></div>
-
-<button class="reset" onclick="resetAll()">一键清空全部</button>
 
 <script>
 var goodsList = [
@@ -291,7 +292,7 @@ function refreshSelectList(){
     countShow.innerText = "总件数："+totalCount+"件";
 }
 
-//导出76mm*130mm快递面单Word
+//导出快递面单Word 76mm*130mm
 function saveWord(){
     if(selectedArr.length===0){
         alert("暂无选购商品，无法导出");
@@ -302,7 +303,6 @@ function saveWord(){
     var day = d.getDate();
     var dateStr = d.getFullYear()+"-"+(m<10?"0"+m:m)+"-"+(day<10?"0"+day:day);
 
-    //Word页面设置：76mm宽，130mm高，边距上下左右2mm
     var html = '<html><head>';
     html += '<meta charset="utf-8">';
     html += '<title>货品面单</title>';
@@ -318,7 +318,6 @@ function saveWord(){
         html += '<tr><td>'+it.no+'</td><td>'+it.name+'</td><td>'+it.price+'</td><td>'+it.count+'</td><td>'+sub+'</td></tr>';
     }
     html += '</table>';
-    //底部汇总：总件数+总金额
     html += '<div style="margin-top:6px;font-size:9pt;font-weight:bold;">总件数：'+totalCount+'件&nbsp;&nbsp;合计：¥'+totalMoney.toFixed(2)+'</div>';
     html += '</body></html>';
 
@@ -357,11 +356,14 @@ function filterGoods(){
     render(arr);
 }
 
+//清空增加确认弹窗
 function resetAll(){
-    selectedArr=[];
-    saveStorage();
-    calcTotal();
-    refreshSelectList();
+    if(confirm("确定要清空全部已选商品吗？清空后无法恢复！")){
+        selectedArr=[];
+        saveStorage();
+        calcTotal();
+        refreshSelectList();
+    }
 }
 
 calcTotal();
