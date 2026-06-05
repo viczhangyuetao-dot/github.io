@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1,user-scalable=no">
 <title>宠物零食计价开单系统</title>
+<script src="https://cdn.jsdelivr.net/npm/html2pdf@0.0.10/dist/html2pdf.bundle.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system}
 body{background:#f7f7f7;padding:12px;max-width:800px;margin:0 auto;}
@@ -58,16 +59,11 @@ body{background:#f7f7f7;padding:12px;max-width:800px;margin:0 auto;}
     width:100%;margin-top:8px;padding:14px;background:#f55;font-size:17px;color:#fff;border:0;border-radius:10px;
 }
 
-.print-date{display:none;font-size:15px;color:#333;margin-bottom:10px;}
-.print-total-bottom{display:none;font-size:18px;font-weight:bold;text-align:right;margin-top:15px;}
-
-@media print {
-    body{background:#fff;padding:0;}
-    .top-card,.search-box,.goods-container,.list-title>.printBtn,.subBtn,.delAllBtn,.reset{display:none !important;}
-    .selected-box{max-height:none;overflow:visible;border:none;padding:0;}
-    .selected-item{border-bottom:1px solid #999;}
-    .print-date,.print-total-bottom{display:block !important;}
-}
+/* PDF打印区域样式 */
+.pdf-wrap{display:none;}
+.pdf-date{font-size:15px;color:#333;margin-bottom:10px;}
+.pdf-total{font-size:18px;font-weight:bold;text-align:right;margin-top:15px;}
+.pdf-item{padding:6px 0;border-bottom:1px solid #999;font-size:14px;}
 </style>
 </head>
 <body>
@@ -83,11 +79,9 @@ body{background:#f7f7f7;padding:12px;max-width:800px;margin:0 auto;}
 
 <div class="list-title">
     已选购清单
-    <button class="printBtn" onclick="printBill()">打印单据</button>
+    <button class="printBtn" onclick="savePdf()">导出PDF单据</button>
 </div>
-<div class="print-date" id="printDate"></div>
 <div class="selected-box" id="selectedList"></div>
-<div class="print-total-bottom" id="printBottomTotal"></div>
 
 <div class="search-box">
     <input id="searchInput" placeholder="输入编号/产品名称快速搜索" oninput="filterGoods()">
@@ -96,6 +90,13 @@ body{background:#f7f7f7;padding:12px;max-width:800px;margin:0 auto;}
 <div class="goods-container" id="goodsWrap"></div>
 
 <button class="reset" onclick="resetAll()">一键清空全部</button>
+
+<!-- PDF隐藏模板 -->
+<div class="pdf-wrap" id="pdfBox">
+    <div class="pdf-date" id="pdfDate"></div>
+    <div id="pdfList"></div>
+    <div class="pdf-total" id="pdfTotal"></div>
+</div>
 
 <script>
 var goodsList = [
@@ -233,8 +234,10 @@ var totalDom = document.getElementById('totalShow');
 var countShow = document.getElementById('countShow');
 var searchDom = document.getElementById('searchInput');
 var selectDom = document.getElementById('selectedList');
-var printDateDom = document.getElementById('printDate');
-var printBottomTotalDom = document.getElementById('printBottomTotal');
+var pdfBox = document.getElementById('pdfBox');
+var pdfDate = document.getElementById('pdfDate');
+var pdfList = document.getElementById('pdfList');
+var pdfTotal = document.getElementById('pdfTotal');
 
 var selectedArr = [];
 if(localStorage.getItem("billData")){
@@ -304,15 +307,42 @@ function refreshSelectList(){
     }
     totalDom.innerText = "¥"+totalMoney.toFixed(2);
     countShow.innerText = "总件数："+totalCount+"件";
+}
 
+//导出PDF函数
+function savePdf(){
+    if(selectedArr.length===0){
+        alert("暂无选购商品，无法导出PDF");
+        return;
+    }
+    //填充PDF内容
     var d = new Date();
     var m = d.getMonth()+1;
     var day = d.getDate();
     var h = d.getHours();
     var min = d.getMinutes();
     var dateStr = d.getFullYear()+"-"+(m<10?"0"+m:m)+"-"+(day<10?"0"+day:day)+" "+(h<10?"0"+h:h)+":"+(min<10?"0"+min:min);
-    printDateDom.innerText = "制单日期："+dateStr;
-    printBottomTotalDom.innerText = "单据汇总：共"+totalCount+"件，合计总金额 ¥"+totalMoney.toFixed(2);
+    pdfDate.innerText = "制单日期："+dateStr;
+    pdfList.innerHTML = "";
+    for(var i=0;i<selectedArr.length;i++){
+        var it = selectedArr[i];
+        var sub = (it.price*it.count).toFixed(2);
+        var pdiv = document.createElement("div");
+        pdiv.className = "pdf-item";
+        pdiv.innerText = it.no+" "+it.name+" 单价"+it.price+" ×"+it.count+" = "+sub+"元";
+        pdfList.appendChild(pdiv);
+    }
+    pdfTotal.innerText = "单据汇总：共"+totalCount+"件，合计总金额 ¥"+totalMoney.toFixed(2);
+
+    //导出PDF
+    var opt = {
+        margin:8,
+        filename:'开单小票_'+d.getFullYear()+''+(m<10?"0"+m:m)+''+(day<10?"0"+day:day)+'.pdf',
+        image:{type:'jpeg',quality:0.98},
+        html2canvas:{scale:2},
+        jsPDF:{unit:'mm',format:'a5',orientation:'portrait'}
+    };
+    html2pdf().set(opt).from(pdfBox).save();
 }
 
 function render(list){
@@ -344,14 +374,6 @@ function resetAll(){
     saveStorage();
     calcTotal();
     refreshSelectList();
-}
-
-function printBill(){
-    if(selectedArr.length===0){
-        alert("暂无商品，不能打印");
-        return;
-    }
-    window.print();
 }
 
 calcTotal();
