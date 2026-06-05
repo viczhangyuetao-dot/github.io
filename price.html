@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1,user-scalable=no">
+<title>宠物零食计价开单系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system}
+body{background:#f7f7f7;padding:12px;max-width:800px;margin:0 auto;}
+
+.top-card{background:#fff;padding:16px;border-radius:12px;margin-bottom:8px;box-shadow:0 1px 6px #eee;}
+.sum-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;}
+.sum-text{font-size:18px;color:#444;}
+.sum-price{font-size:32px;color:#f04142;font-weight:bold;}
+.sum-count{font-size:16px;color:#2266bb;font-weight:bold;}
+
+.search-box{margin-bottom:15px;}
+#searchInput{
+    width:100%;padding:13px 15px;border:1px solid #ddd;border-radius:10px;
+    font-size:16px;outline:none;
+}
+
+.goods-container{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:10px;margin-bottom:20px;
+}
+.item-btn{
+    padding:12px 6px;border:0;border-radius:8px;background:#3690ff;color:#fff;font-size:13px;
+}
+.item-btn:active{background:#2373d8}
+
+.list-title{
+    font-size:17px;margin:8px 0 8px;font-weight:bold;
+    display:flex;justify-content:space-between;align-items:center;
+}
+.printBtn{
+    padding:6px 14px;background:#22bb55;color:#fff;border:none;border-radius:6px;font-size:14px;
+}
+
+.selected-box{
+    background:#fff;padding:12px;border-radius:10px;margin-bottom:15px;
+    max-height:320px;overflow-y:auto;
+}
+.selected-item{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:9px 0;border-bottom:1px solid #eee;font-size:14px;
+}
+.oper-box{display:flex;gap:6px;}
+.subBtn{
+    background:#ff5555;color:#fff;border:none;padding:3px 8px;border-radius:5px;font-size:12px;
+}
+.delAllBtn{
+    background:#999;color:#fff;border:none;padding:3px 8px;border-radius:5px;font-size:12px;
+}
+
+.reset{
+    width:100%;margin-top:8px;padding:14px;background:#f55;font-size:17px;color:#fff;border:0;border-radius:10px;
+}
+
+.print-date{display:none;font-size:15px;color:#333;margin-bottom:10px;}
+.print-total-bottom{display:none;font-size:18px;font-weight:bold;text-align:right;margin-top:15px;}
+
+@media print {
+    body{background:#fff;padding:0;}
+    .top-card,.search-box,.goods-container,.list-title>.printBtn,.subBtn,.delAllBtn,.reset{display:none !important;}
+    .selected-box{max-height:none;overflow:visible;border:none;padding:0;}
+    .selected-item{border-bottom:1px solid #999;}
+    .print-date,.print-total-bottom{display:block !important;}
+}
+</style>
+</head>
+<body>
+<div class="top-card">
+    <div class="sum-row">
+        <div>
+            <div class="sum-text">合计金额：</div>
+            <div class="sum-price" id="totalShow">¥0.00</div>
+        </div>
+        <div class="sum-count" id="countShow">总件数：0件</div>
+    </div>
+</div>
+
+<div class="list-title">
+    已选购清单
+    <button class="printBtn" onclick="printBill()">打印单据</button>
+</div>
+<div class="print-date" id="printDate"></div>
+<div class="selected-box" id="selectedList"></div>
+<div class="print-total-bottom" id="printBottomTotal"></div>
+
+<div class="search-box">
+    <input id="searchInput" placeholder="输入编号/产品名称快速搜索" oninput="filterGoods()">
+</div>
+
+<div class="goods-container" id="goodsWrap"></div>
+
+<button class="reset" onclick="resetAll()">一键清空全部</button>
+
+<script>
+var goodsList = [
+{no:"1",name:"美毛荷包蛋",price:5.9},
+{no:"2",name:"桃桃流沙瑞士卷",price:9.9},
+{no:"3",name:"鲜果咬咬乐",price:12.8},
+{no:"4",name:"冻干蓝莓兔肉小翅膀",price:5.9},
+{no:"5",name:"水果酸奶拿破仑",price:7.7},
+{no:"6",name:"莓莓火龙果三角脆",price:6.9},
+{no:"7",name:"布拉德益生菌",price:6.9},
+{no:"8",name:"姜黄鲷鱼烧",price:5.9},
+{no:"9",name:"鸭小梨",price:5.9},
+{no:"10",name:"鹅心鹅肝糖葫芦",price:9.9},
+{no:"11",name:"五福饼",price:8.8},
+{no:"12",name:"鲜食南瓜盅（买2送1）",price:12.8},
+{no:"13",name:"帕恰狗披萨",price:8.8},
+{no:"14",name:"Kitty铜锣烧",price:12.8},
+{no:"15",name:"布朗尼小熊饼",price:6.9},
+{no:"16",name:"星星碗3只",price:6.6},
+{no:"17",name:"柿柿如意汤圆",price:5.9},
+{no:"18",name:"玉米奶酪挞挞",price:6.9},
+{no:"19",name:"鸭食管扭扭棒",price:9.9},
+{no:"20",name:"芝士华夫饼",price:8.8},
+{no:"21",name:"苦苣鸭肉大片",price:6.6},
+{no:"22",name:"鸭肉牛喉管",price:8.8},
+{no:"23",name:"烘干鸡肉贝果",price:7.7},
+{no:"24",name:"烘干鸭肉贝果",price:7.9},
+{no:"25",name:"鳕鱼皮节骨（买3送1）",price:7.5},
+{no:"26",name:"鸭肉奶酪棒",price:6.9},
+{no:"27",name:"鸭肉钙骨棒",price:6.9},
+{no:"28",name:"冻干小鲨鱼",price:8.8},
+{no:"29",name:"冻干椰椰兔龙骨",price:8.8},
+{no:"30",name:"烘干猪唧唧",price:8.8},
+{no:"31",name:"鸭头（买1送1）",price:9.9},
+{no:"32",name:"烘干大鸭脖（买1送1）",price:8.8},
+{no:"33",name:"烘干香酥鸡胗",price:8.8},
+{no:"34",name:"牛蹄 大号",price:7.7},
+{no:"35",name:"鲜蒸牛膝骨",price:9.9},
+{no:"36",name:"鸭肉鲨鱼软骨",price:8.8},
+{no:"37",name:"大号鸭肉月牙骨",price:9.9},
+{no:"38",name:"大号带韧带软骨牛扇骨",price:7.7},
+{no:"39",name:"小号带韧带软骨牛扇骨",price:5.9},
+{no:"40",name:"苦苣鸭肉卷羊蹄",price:20.8},
+{no:"41",name:"苦苣鸡肉卷羊蹄",price:19.8},
+{no:"42",name:"鸭肉绕牛耳根",price:9.9},
+{no:"43",name:"烘干牛耳",price:7.9},
+{no:"44",name:"大号水牛皮磨牙棒（4支装）",price:9.9},
+{no:"45",name:"冻干鸭翅",price:6.6},
+{no:"46",name:"大号鸭肉咕噜球",price:8.8},
+{no:"47",name:"烘干三文鱼尾2只",price:6.6},
+{no:"48",name:"烘干三文鱼尾8只",price:19.8},
+{no:"49",name:"鲜蒸酥骨三文鱼尾2只",price:6.6},
+{no:"50",name:"鲜蒸酥骨三文鱼尾8只",price:19.8},
+{no:"51",name:"超大鸡鸭夹心甜甜圈",price:19.8},
+{no:"52",name:"大鸡鸭夹心甜甜圈",price:9.9},
+{no:"53",name:"中鸡鸭夹心甜甜圈",price:7.7},
+{no:"54",name:"鸭肉烤乳羊排",price:9.9},
+{no:"55",name:"鸭肉绕鸡脆骨",price:8.8},
+{no:"56",name:"鹅喉管",price:6.9},
+{no:"57",name:"冻干酸奶兔排",price:9.9},
+{no:"58",name:"乳牛脊骨",price:8.8},
+{no:"59",name:"鸭肉绕牛软骨",price:12.8},
+{no:"60",name:"鱼子爆珠主食冻干",price:7.9},
+{no:"61",name:"姜黄蜂蜜鸡",price:8.8},
+{no:"62",name:"冻干羊奶鹿肉包浆主食奶芙",price:7.9},
+{no:"63",name:"缤纷兔肉莓果饼",price:8.8},
+{no:"64",name:"冻干羽衣甘蓝鸭肉梨主食",price:7.9},
+{no:"65",name:"草莓雪梨酥酥鸭BOLD",price:7.7},
+{no:"66",name:"一口吃掉彩虹主食",price:7.9},
+{no:"67",name:"草肚便便",price:8.8},
+{no:"68",name:"软骨素脆脆鲨（买3送1）",price:9.9},
+{no:"69",name:"鲜食鸡肝300g",price:9.9},
+{no:"70",name:"鲜食鸡肝1000g",price:26.8},
+{no:"71",name:"鲜食鸭胸120g",price:7.9},
+{no:"72",name:"鲜食鸭胸600g",price:36.8},
+{no:"73",name:"冻干65%兔血（买3送1）",price:8.8},
+{no:"74",name:"冻干牛草肚",price:15.8},
+{no:"75",name:"冻干猪蛋",price:7.7},
+{no:"76",name:"蜂蜜奶霜小鸡脖",price:7.9},
+{no:"77",name:"冻干生肝粒",price:5.9},
+{no:"78",name:"冻干厚切鸭胸",price:7.9},
+{no:"79",name:"冻干小鹌鹑",price:7.7},
+{no:"80",name:"椰奶鸡小胸",price:9.9},
+{no:"81",name:"鸡肉草肚云朵",price:6.9},
+{no:"82",name:"冻干香茅小鲜砖",price:6.9},
+{no:"83",name:"冻干磷虾",price:7.7},
+{no:"84",name:"冻干莓莓脆鸡（买1送1）",price:6.6},
+{no:"85",name:"冻干梨梨脆鸭（买1送1）",price:6.6},
+{no:"86",name:"草本茯苓车前子鸭肉（买1送1）",price:8.8},
+{no:"87",name:"冻干鹌鹑蛋黄",price:14.8},
+{no:"88",name:"鸭肉粒",price:6.9},
+{no:"89",name:"冻干椰椰奶泡鸡肉粒",price:6.9},
+{no:"90",name:"冻干猪心",price:8.8},
+{no:"91",name:"鲜食月牙骨",price:7.9},
+{no:"92",name:"苦瓜鸭肉圈",price:13.8},
+{no:"93",name:"混合茸苗（买4送1）",price:9.9},
+{no:"94",name:"六莓粒（买4送1）",price:9.9},
+{no:"95",name:"缤纷蔬菜拌拌乐（买4送1）",price:8.8},
+{no:"96",name:"冻干仙果肉",price:8.8},
+{no:"97",name:"蓝莓奶鲜花饼",price:6.9},
+{no:"98",name:"厚乳芝士麦片卡蜂蜜奶砖",price:8.8},
+{no:"99",name:"美毛奶酪棒",price:8.8},
+{no:"100",name:"火鸡青瓜奶枣",price:7.9},
+{no:"101",name:"火龙果甜甜圈帕特（买1送1）",price:9.9},
+{no:"102",name:"肉蛋奶脆脆砖（买1送1）",price:7.5},
+{no:"103",name:"猫草甜甜圈诚实一口",price:8.8},
+{no:"104",name:"蔓越莓芝士酸奶好多鱼",price:7.7},
+{no:"105",name:"清新口腔卫士",price:7.9},
+{no:"106",name:"羊奶鱼油棒",price:8.8},
+{no:"107",name:"烘干羊奶溶豆",price:6.6},
+{no:"108",name:"A2羊奶奶砖",price:6.6},
+{no:"109",name:"烘干鸭胸绕苹果",price:7.9},
+{no:"110",name:"山羊奶酪条",price:8.8},
+{no:"111",name:"鸭肉抱蛋",price:8.8},
+{no:"112",name:"烘干鸭肉奇亚籽",price:7.7},
+{no:"113",name:"烘干鸡肉椰子条",price:8.8},
+{no:"114",name:"鸭肉绕紫薯",price:7.9},
+{no:"115",name:"鸡鸭羽衣甘蓝薯片（买1送1）",price:8.8},
+{no:"116",name:"冻干草莓兔小翅膀",price:5.9},
+{no:"117",name:"薯泥饼",price:8.8},
+{no:"118",name:"彩虹羊奶饼",price:6.9},
+{no:"119",name:"西兰花芽苗曲奇",price:7.9},
+{no:"120",name:"烘干猪蛋片",price:8.8},
+{no:"121",name:"烘干鹅爪双脆",price:5.9},
+{no:"122",name:"肉墩墩主食肉肠6只",price:9.9},
+{no:"123",name:"三色球主食餐盒4只",price:9.9},
+{no:"124",name:"烘干薄脆鸡肉片",price:7.9},
+{no:"125",name:"薄脆鸡心片",price:8.8},
+{no:"126",name:"混合口味拇指肠",price:6.9},
+{no:"127",name:"鸭肉牛皮棒",price:8.8}
+];
+
+var wrapDom = document.getElementById('goodsWrap');
+var totalDom = document.getElementById('totalShow');
+var countShow = document.getElementById('countShow');
+var searchDom = document.getElementById('searchInput');
+var selectDom = document.getElementById('selectedList');
+var printDateDom = document.getElementById('printDate');
+var printBottomTotalDom = document.getElementById('printBottomTotal');
+
+var selectedArr = [];
+if(localStorage.getItem("billData")){
+    selectedArr = JSON.parse(localStorage.getItem("billData"));
+}
+var totalMoney = 0;
+var totalCount = 0;
+
+function calcTotal(){
+    totalMoney = 0;
+    totalCount = 0;
+    for(var i=0;i<selectedArr.length;i++){
+        totalMoney += selectedArr[i].price * selectedArr[i].count;
+        totalCount += selectedArr[i].count;
+    }
+}
+
+function saveStorage(){
+    localStorage.setItem("billData",JSON.stringify(selectedArr));
+}
+
+function addSelect(goods){
+    var exist = null;
+    for(var i=0;i<selectedArr.length;i++){
+        if(selectedArr[i].no === goods.no){
+            exist = selectedArr[i];
+            break;
+        }
+    }
+    if(exist){
+        exist.count = exist.count + 1;
+    }else{
+        selectedArr.push({no:goods.no,name:goods.name,price:goods.price,count:1});
+    }
+    saveStorage();
+    calcTotal();
+    refreshSelectList();
+}
+
+function subOne(idx){
+    var item = selectedArr[idx];
+    item.count = item.count - 1;
+    if(item.count <= 0){
+        selectedArr.splice(idx,1);
+    }
+    saveStorage();
+    calcTotal();
+    refreshSelectList();
+}
+
+function delAllRow(idx){
+    selectedArr.splice(idx,1);
+    saveStorage();
+    calcTotal();
+    refreshSelectList();
+}
+
+function refreshSelectList(){
+    selectDom.innerHTML = "";
+    for(var i=0;i<selectedArr.length;i++){
+        var item = selectedArr[i];
+        var xj = (item.price*item.count).toFixed(2);
+        var div = document.createElement('div');
+        div.className="selected-item";
+        div.innerHTML = '<span>'+item.no+' '+item.name+' '+item.price+'元 ×'+item.count+' = '+xj+'元</span><div class="oper-box"><button class="subBtn" onclick="subOne('+i+')">-1</button><button class="delAllBtn" onclick="delAllRow('+i+')">整删</button></div>';
+        selectDom.appendChild(div);
+    }
+    totalDom.innerText = "¥"+totalMoney.toFixed(2);
+    countShow.innerText = "总件数："+totalCount+"件";
+
+    var d = new Date();
+    var m = d.getMonth()+1;
+    var day = d.getDate();
+    var h = d.getHours();
+    var min = d.getMinutes();
+    var dateStr = d.getFullYear()+"-"+(m<10?"0"+m:m)+"-"+(day<10?"0"+day:day)+" "+(h<10?"0"+h:h)+":"+(min<10?"0"+min:min);
+    printDateDom.innerText = "制单日期："+dateStr;
+    printBottomTotalDom.innerText = "单据汇总：共"+totalCount+"件，合计总金额 ¥"+totalMoney.toFixed(2);
+}
+
+function render(list){
+    wrapDom.innerHTML="";
+    for(var i=0;i<list.length;i++){
+        var item = list[i];
+        var btn = document.createElement("button");
+        btn.className="item-btn";
+        btn.innerText = item.no+" "+item.name+" ¥"+item.price;
+        btn.onclick = function(obj){return function(){addSelect(obj);}}(item);
+        wrapDom.appendChild(btn);
+    }
+}
+
+function filterGoods(){
+    var key = searchDom.value.trim().toLowerCase();
+    var arr = [];
+    for(var i=0;i<goodsList.length;i++){
+        var g = goodsList[i];
+        if(g.no.indexOf(key)>-1 || g.name.toLowerCase().indexOf(key)>-1){
+            arr.push(g);
+        }
+    }
+    render(arr);
+}
+
+function resetAll(){
+    selectedArr=[];
+    saveStorage();
+    calcTotal();
+    refreshSelectList();
+}
+
+function printBill(){
+    if(selectedArr.length===0){
+        alert("暂无商品，不能打印");
+        return;
+    }
+    window.print();
+}
+
+calcTotal();
+render(goodsList);
+refreshSelectList();
+</script>
+</body>
+</html>
