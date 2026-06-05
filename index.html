@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1,user-scalable=no">
-<title>宠物零食计价开单系统</title>
-<script src="https://cdn.bootcdn.net/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<title>煲仔饭食记宠物零食计价开单系统</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system}
 body{background:#f7f7f7;padding:12px;max-width:800px;margin:0 auto;}
@@ -58,19 +57,6 @@ body{background:#f7f7f7;padding:12px;max-width:800px;margin:0 auto;}
 .reset{
     width:100%;margin-top:8px;padding:14px;background:#f55;font-size:17px;color:#fff;border:0;border-radius:10px;
 }
-
-/* 修复PDF空白：visibility隐藏，不脱离文档流，截图可捕获 */
-.pdf-wrap{
-    visibility:hidden;
-    position:absolute;
-    top:-2000px;
-    width:160mm;
-    background:#fff;
-    padding:10px;
-}
-.pdf-date{font-size:15px;color:#333;margin-bottom:10px;}
-.pdf-total{font-size:18px;font-weight:bold;text-align:right;margin-top:15px;}
-.pdf-item{padding:6px 0;border-bottom:1px solid #999;font-size:14px;}
 </style>
 </head>
 <body>
@@ -86,7 +72,7 @@ body{background:#f7f7f7;padding:12px;max-width:800px;margin:0 auto;}
 
 <div class="list-title">
     已选购清单
-    <button class="printBtn" onclick="savePdf()">导出PDF单据</button>
+    <button class="printBtn" onclick="saveWord()">导出面单Word</button>
 </div>
 <div class="selected-box" id="selectedList"></div>
 
@@ -97,12 +83,6 @@ body{background:#f7f7f7;padding:12px;max-width:800px;margin:0 auto;}
 <div class="goods-container" id="goodsWrap"></div>
 
 <button class="reset" onclick="resetAll()">一键清空全部</button>
-
-<div class="pdf-wrap" id="pdfBox">
-    <div class="pdf-date" id="pdfDate"></div>
-    <div id="pdfList"></div>
-    <div class="pdf-total" id="pdfTotal"></div>
-</div>
 
 <script>
 var goodsList = [
@@ -240,10 +220,6 @@ var totalDom = document.getElementById('totalShow');
 var countShow = document.getElementById('countShow');
 var searchDom = document.getElementById('searchInput');
 var selectDom = document.getElementById('selectedList');
-var pdfBox = document.getElementById('pdfBox');
-var pdfDate = document.getElementById('pdfDate');
-var pdfList = document.getElementById('pdfList');
-var pdfTotal = document.getElementById('pdfTotal');
 
 var selectedArr = [];
 if(localStorage.getItem("billData")){
@@ -315,47 +291,46 @@ function refreshSelectList(){
     countShow.innerText = "总件数："+totalCount+"件";
 }
 
-//导出PDF 优化配置+加长延时
-function savePdf(){
+//导出76mm*130mm快递面单Word
+function saveWord(){
     if(selectedArr.length===0){
-        alert("暂无选购商品，无法导出PDF");
+        alert("暂无选购商品，无法导出");
         return;
     }
     var d = new Date();
     var m = d.getMonth()+1;
     var day = d.getDate();
-    var h = d.getHours();
-    var min = d.getMinutes();
-    var dateStr = d.getFullYear()+"-"+(m<10?"0"+m:m)+"-"+(day<10?"0"+day:day)+" "+(h<10?"0"+h:h)+":"+(min<10?"0"+min:min);
-    pdfDate.innerText = "制单日期："+dateStr;
-    pdfList.innerHTML = "";
+    var dateStr = d.getFullYear()+"-"+(m<10?"0"+m:m)+"-"+(day<10?"0"+day:day);
+
+    //Word页面设置：76mm宽，130mm高，边距上下左右2mm
+    var html = '<html><head>';
+    html += '<meta charset="utf-8">';
+    html += '<title>货品面单</title>';
+    html += '<style>@page{size:76mm 130mm;margin:2mm;}body{font-size:9pt;margin:0;padding:0;}</style>';
+    html += '</head><body>';
+    html += '<div style="text-align:center;font-weight:bold;font-size:10pt;margin-bottom:4px;">煲仔饭食记宠物零食发货单</div>';
+    html += '<div style="font-size:8pt;margin-bottom:3px;">制单日期：'+dateStr+'</div><hr size="1">';
+    html += '<table width="100%" border="1" cellpadding="2" cellspacing="0" style="font-size:7.5pt;">';
+    html += '<tr><th>编号</th><th>品名</th><th>单价</th><th>数</th><th>小计</th></tr>';
     for(var i=0;i<selectedArr.length;i++){
         var it = selectedArr[i];
         var sub = (it.price*it.count).toFixed(2);
-        var pdiv = document.createElement("div");
-        pdiv.className = "pdf-item";
-        pdiv.innerText = it.no+" "+it.name+" 单价"+it.price+" ×"+it.count+" = "+sub+"元";
-        pdfList.appendChild(pdiv);
+        html += '<tr><td>'+it.no+'</td><td>'+it.name+'</td><td>'+it.price+'</td><td>'+it.count+'</td><td>'+sub+'</td></tr>';
     }
-    pdfTotal.innerText = "单据汇总：共"+totalCount+"件，合计总金额 ¥"+totalMoney.toFixed(2);
+    html += '</table>';
+    //底部汇总：总件数+总金额
+    html += '<div style="margin-top:6px;font-size:9pt;font-weight:bold;">总件数：'+totalCount+'件&nbsp;&nbsp;合计：¥'+totalMoney.toFixed(2)+'</div>';
+    html += '</body></html>';
 
-    var opt = {
-        margin:8,
-        filename:'开单小票_'+d.getFullYear()+''+(m<10?"0"+m:m)+''+(day<10?"0"+day:day)+'.pdf',
-        image:{type:'jpeg',quality:0.98},
-        html2canvas:{
-            scale:1.5,
-            useCORS:true,
-            allowTaint:true,
-            backgroundColor:"#ffffff",
-            letterRendering:true
-        },
-        jsPDF:{unit:'mm',format:'a5',orientation:'portrait'}
-    };
-    //延长等待到800ms，DOM渲染完毕再生成
-    setTimeout(function(){
-        html2pdf().set(opt).from(pdfBox).save();
-    },800);
+    var blob = new Blob([html],{type:"application/msword"});
+    var a = document.createElement("a");
+    var fileName = '发货面单_'+d.getFullYear()+''+(m<10?"0"+m:m)+''+(day<10?"0"+day:day)+'.doc';
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
 }
 
 function render(list){
