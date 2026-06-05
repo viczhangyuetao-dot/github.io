@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1,user-scalable=no">
 <title>宠物零食计价开单系统</title>
-<script src="https://cdn.jsdelivr.net/npm/html2pdf@0.0.10/dist/html2pdf.bundle.min.js"></script>
+<!-- 国内稳定CDN -->
+<script src="https://cdn.bootcdn.net/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system}
 body{background:#f7f7f7;padding:12px;max-width:800px;margin:0 auto;}
@@ -59,7 +60,6 @@ body{background:#f7f7f7;padding:12px;max-width:800px;margin:0 auto;}
     width:100%;margin-top:8px;padding:14px;background:#f55;font-size:17px;color:#fff;border:0;border-radius:10px;
 }
 
-/* PDF打印区域样式 */
 .pdf-wrap{display:none;}
 .pdf-date{font-size:15px;color:#333;margin-bottom:10px;}
 .pdf-total{font-size:18px;font-weight:bold;text-align:right;margin-top:15px;}
@@ -91,7 +91,7 @@ body{background:#f7f7f7;padding:12px;max-width:800px;margin:0 auto;}
 
 <button class="reset" onclick="resetAll()">一键清空全部</button>
 
-<!-- PDF隐藏模板 -->
+<!-- PDF隐藏打印容器 -->
 <div class="pdf-wrap" id="pdfBox">
     <div class="pdf-date" id="pdfDate"></div>
     <div id="pdfList"></div>
@@ -309,13 +309,12 @@ function refreshSelectList(){
     countShow.innerText = "总件数："+totalCount+"件";
 }
 
-//导出PDF函数
+//导出PDF
 function savePdf(){
     if(selectedArr.length===0){
         alert("暂无选购商品，无法导出PDF");
         return;
     }
-    //填充PDF内容
     var d = new Date();
     var m = d.getMonth()+1;
     var day = d.getDate();
@@ -334,7 +333,6 @@ function savePdf(){
     }
     pdfTotal.innerText = "单据汇总：共"+totalCount+"件，合计总金额 ¥"+totalMoney.toFixed(2);
 
-    //导出PDF
     var opt = {
         margin:8,
         filename:'开单小票_'+d.getFullYear()+''+(m<10?"0"+m:m)+''+(day<10?"0"+day:day)+'.pdf',
